@@ -42,6 +42,7 @@ cd cs182-project
 python3 -m venv .venv
 source .venv/bin/activate
 pip install pandas numpy torch tqdm
+    
 
 ▶️ Usage
 Generate synthetic recursive data
