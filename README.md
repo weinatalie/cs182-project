@@ -42,21 +42,26 @@ cd cs182-project
 python3 -m venv .venv
 source .venv/bin/activate
 pip install pandas numpy torch tqdm
-    
+```
 
 ▶️ Usage
 Generate synthetic recursive data
+```
 python data_generator.py --rows 500000 --noise 2 --min_seed -100 --max_seed 100 --out noisy_fibonacci.csv
-
+```
 Parse Amazon review or synthetic data
+```
 python data_parse.py --input amazon_review.csv --output amazon_reviews_processed.csv
+```
 
 Train baseline models
+```
 python transformer_gpu.py --data amazon_reviews_processed.csv --epochs 10 --batch_size 64
 python rnn_gpu.py --data amazon_reviews_processed.csv --epochs 10 --batch_size 64
 python rnn_reg_gpu.py --data noisy_fibonacci.csv --epochs 15 --batch_size 128
+```
 
-⚠️ Limitations
+## ⚠️ Limitations
 
 Synthetic data is distribution-controlled, not realism-matched
 
@@ -64,7 +69,7 @@ Few-shot estimator discovery may need manual logging & analysis harness
 
 GPU scripts require a compatible backend like PyTorch
 
-🤝 Authors
+## 🤝 Authors
 
 Research and engineering collaboration by the project team:
 
@@ -74,7 +79,7 @@ Natalie Wei,
 Andrew Choy,
 Minjune Kim
 
-📚 Background References
+## 📚 Background References
 
 Scaling and discovery of few-shot ICL was first shown in OpenAI via GPT-3 (Brown et al. 2020)
 
