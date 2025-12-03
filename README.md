@@ -44,7 +44,7 @@ source .venv/bin/activate
 pip install pandas numpy torch tqdm
 ```
 
-▶️ Usage
+## ▶️ Usage
 Generate synthetic recursive data
 ```
 python data_generator.py --rows 500000 --noise 2 --min_seed -100 --max_seed 100 --out noisy_fibonacci.csv
