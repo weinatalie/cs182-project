@@ -15,9 +15,9 @@ def getDF(path):
     i += 1
   return pd.DataFrame.from_dict(df, orient='index')
 
-df = getDF('Clothing_Shoes_and_Jewelry_5.json.gz')
-selected_columns = df[["reviewText", "overall"]]
-selected_columns.to_csv("amazon_review.csv", index=False)
+# df = getDF('Clothing_Shoes_and_Jewelry_5.json.gz')
+# selected_columns = df[["reviewText", "overall"]].head(100000)
+# selected_columns.to_csv("amazon_review.csv", index=False)
 
 
 ### Data Processing for Fibonacci with letters ###
@@ -33,3 +33,12 @@ selected_columns.to_csv("amazon_review.csv", index=False)
 # selected_columns["target"] = selected_columns["target"].astype(object)
 # selected_columns["target"] = selected_columns["target"].astype(str)
 # selected_columns.to_csv("processed_noisy_fibonacci_mixed_5to8_1M_seed_-100_100.csv", index = False)
+
+### Data Processing for typo 
+# df = pd.read_csv("typo_noise_clean.csv")
+# selected_columns = df[["noise","clean"]].copy()
+# selected_columns["noise"] = selected_columns["noise"].astype(object)
+# selected_columns["noise"] = selected_columns["noise"].astype(str)
+# selected_columns["clean"] = selected_columns["clean"].astype(object)
+# selected_columns["clean"] = selected_columns["clean"].astype(str)
+# selected_columns.to_csv("processed_typo_noise_clean.csv", index = False)
