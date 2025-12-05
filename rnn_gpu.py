@@ -32,30 +32,51 @@ spm.SentencePieceTrainer.train(
 )
 '''
 
+tok = spm.SentencePieceProcessor(model_file='amazon_reviews.model')
+
+
+ls  = [len(tok.encode(i, out_type=int)) for i in data["reviewText"]]
+
+data["lengths"] = ls
+
+data_trunc = data[data["lengths"]<=80]
+
+v = data_trunc["overall"].value_counts()
+
+balanced_data = (
+    data_trunc.groupby("overall")
+      .sample(n=min(v), random_state=42)
+      .reset_index(drop=True)
+)
+
 filter_ = 1
 
 
-df_shuffled = data.sample(frac=filter_, random_state=42).reset_index(drop=True)
+df_shuffled = balanced_data.sample(frac=filter_, random_state=42).reset_index(drop=True)
 
 # Split the shuffled DataFrame
 train_size = 0.8
 train_df = df_shuffled.sample(frac=train_size, random_state=42).reset_index(drop=True)
 test_df = df_shuffled.drop(train_df.index).reset_index(drop=True)
 
+len_train = len(train_df)
+len_test = len(test_df)
+
+
 print("Train Size: ", len(train_df))
 print("Test Size: ", len(test_df))
 
-tok = spm.SentencePieceProcessor(model_file='amazon_reviews.model')
+
 
 print(tok.encode("This book is amazing!", out_type=int))
 
 class RNNClassifier(nn.Module):
-    def __init__(self, vocab_size, emb_dim=256, hidden_size=1024, num_layers=15):
+    def __init__(self, vocab_size, emb_dim=512, hidden_size=1024, num_layers=12, dropout=0.2):
         super().__init__()
         self.embedding = nn.Embedding(vocab_size, emb_dim, padding_idx=0)
         self.rnn = nn.LSTM(
             emb_dim, hidden_size, num_layers,
-            batch_first=True, dropout=0.2
+            batch_first=True, dropout=dropout
         )
         self.fc = nn.Linear(hidden_size, 5)
 
@@ -113,13 +134,21 @@ train_loader = DataLoader(
     collate_fn=collate_fn
 )
 
+test_dataset = ReviewDataset(test_df, "amazon_reviews.model")
+test_loader = DataLoader(
+    test_dataset,
+    batch_size=50,
+    shuffle=True,
+    collate_fn=collate_fn
+)
+
 # Loading Data
 
 model = RNNClassifier(vocab_size)
 model = model.to(device)
-optimizer = torch.optim.Adam(model.parameters(), lr=1e-5)
+optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
 criterion = nn.CrossEntropyLoss()
-epochs = 10
+epochs = 15
 
 total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
 print(f"Trainable parameters: {total_params}")
@@ -130,6 +159,7 @@ def train(model, dataloader, optimizer, criterion, epochs):
     track_loss = []
     total_loss = 0
     for i in range(epochs):
+        model.train()
         total_loss = 0
         
         train_data_loader = tqdm(dataloader)
@@ -150,9 +180,32 @@ def train(model, dataloader, optimizer, criterion, epochs):
     
             total_loss += loss.item()
             train_data_loader.set_postfix(loss=avg)
+            del outputs, loss
+            torch.cuda.empty_cache()
+        model.eval()
+        total_val_loss = 0
+        corr =0
+        ll = 0
+
+        with torch.no_grad():
+            for padded, lengths, labels in test_loader:
+                padded = padded.to(device)
+                lengths = lengths.to(device)
+                labels = labels.to(device)
+                outputs = model(padded, lengths)
+
+
+                loss = criterion(outputs, labels)
+
+                v = torch.argmax(outputs, dim =1)
+                delt = torch.sum(v==labels)
+                ll+= len(v)
+                corr += delt
+
+                total_val_loss += loss.item()
         
 
-        print("Epoch", i+1, total_loss / len(dataloader))
+        print("Epoch", i+1, "track loss: ", total_loss / len(train_data_loader), " val loss: ", total_val_loss / len(test_loader), "val acc: ", corr / len_test )
     return total_loss, track_loss
 
 
@@ -167,21 +220,55 @@ def predict(text):
     lengths = lengths.to(device)
     with torch.no_grad():
         out = model(ids, lengths)
-    return float(out)
+        ao = torch.argmax(out).item()
+    return ao
+
 
 #print("Prediction for <I love this book>", predict("I love this book"))
 
-pred = []
-for i in range(len(test_df["reviewText"])):
-    v = predict(test_df["reviewText"][i])
-    pred.append(v)
 
-gt = test_df["overall"].tolist()
+model.eval()
+total_val_loss = 0
+corr =0
 
-gt_th = torch.tensor(gt)
-pred_th = torch.tensor(pred)
+with torch.no_grad():
+    for padded, lengths, labels in test_loader:
+        padded = padded.to(device)
+        lengths = lengths.to(device)
+        labels = labels.to(device)
+        outputs = model(padded, lengths)
 
 
-print("loss", criterion(pred_th,gt_th))
+        loss = criterion(outputs, labels)
+
+        v = torch.argmax(outputs, dim =1)
+        delt = torch.sum(v==labels)
+        corr += delt
+
+        total_val_loss += loss.item()
+
+print("val acc: ", corr / len_test )
+
+total_train_loss = 0
+corr =0
+
+with torch.no_grad():
+    for padded, lengths, labels in train_loader:
+        padded = padded.to(device)
+        lengths = lengths.to(device)
+        labels = labels.to(device)
+        outputs = model(padded, lengths)
+
+
+        loss = criterion(outputs, labels)
+
+        v = torch.argmax(outputs, dim =1)
+        delt = torch.sum(v==labels)
+        corr += delt
+
+        total_train_loss += loss.item()
+
+print("train acc: ", corr / len_train)
+
 
 plt.plot(tracked_loss)
